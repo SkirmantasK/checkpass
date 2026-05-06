@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Local Password Checker & Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-color: #ccc;
+            --primary-color: #1a73e8;
+            --primary-hover: #1557b0;
+            --success-color: #188038;
+            --tip-bg: #e8f0fe;
+            --tip-color: #1967d2;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            text-align: center;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            padding-right: 110px; /* Space for both buttons */
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+
+        .input-actions {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 2px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #666;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #f0f0f0;
+            color: var(--text-color);
+        }
+
+        .generator-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100px;
+        }
+
+        button.btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        button.btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .strength-meter {
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .strength-meter-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-text {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .crack-time {
+            font-size: 0.8rem;
+            color: #555;
+            background: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        .feedback {
+            font-size: 0.85rem;
+            color: #555;
+            min-height: 40px;
+            margin-top: 10px;
+        }
+
+        .warning {
+            color: #d93025;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .security-tip {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--tip-bg);
+            color: var(--tip-color);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        /* Strength Colors */
+        .score-0 { width: 20%; background-color: #d93025; } /* Very Weak */
+        .score-1 { width: 40%; background-color: #f2a900; } /* Weak */
+        .score-2 { width: 60%; background-color: #fbbc05; } /* Fair */
+        .score-3 { width: 80%; background-color: #34a853; } /* Good */
+        .score-4 { width: 100%; background-color: var(--success-color); } /* Strong */
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Password Checker</h2>
+    <p class="subtitle">Runs entirely in your browser. No data leaves your device.</p>
+
+    <div class="generator-controls">
+        <div class="slider-group">
+            <label for="length-slider">Length: <span id="length-val">16</span></label>
+            <input type="range" id="length-slider" min="15" max="64" value="16">
+        </div>
+        <button class="btn-primary" id="generate-btn">Generate</button>
+    </div>
+
+    <div class="input-group">
+        <input type="password" id="password-input" placeholder="Type or generate a password..." autocomplete="off">
+        <div class="input-actions">
+            <button class="action-btn" id="copy-btn" type="button" title="Copy to clipboard">Copy</button>
+            <button class="action-btn" id="toggle-btn" type="button" title="Show or hide password">Show</button>
+        </div>
+    </div>
+
+    <div class="strength-meter">
+        <div class="strength-meter-fill" id="meter-fill"></div>
+    </div>
+
+    <div class="status-container">
+        <div class="status-text" id="status-text">Waiting for input...</div>
+        <div class="crack-time" id="crack-time" style="display: none;"></div>
+    </div>
+    
+    <div class="feedback" id="feedback">
+        <div class="warning" id="warning"></div>
+        <ul id="suggestions" style="margin: 0; padding-left: 20px;"></ul>
+    </div>
+
+    <div class="security-tip">
+        <strong>💡 Security Tip:</strong> A strong password is not enough on its own. Always enable <strong>Two-Factor Authentication (2FA)</strong> wherever possible to protect your accounts from data breaches and theft.
+    </div>
+</div>
+
+<script>
+    const passwordInput = document.getElementById('password-input');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const meterFill = document.getElementById('meter-fill');
+    const statusText = document.getElementById('status-text');
+    const crackTime = document.getElementById('crack-time');
+    const warningText = document.getElementById('warning');
+    const suggestionsList = document.getElementById('suggestions');
+    
+    const generateBtn = document.getElementById('generate-btn');
+    const lengthSlider = document.getElementById('length-slider');
+    const lengthVal = document.getElementById('length-val');
+
+    const scoreLabels = [
+        "Very Weak", 
+        "Weak", 
+        "Fair", 
+        "Good", 
+        "Strong"
+    ];
+
+    function generateSecurePassword(length) {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+        let password = "";
+        
+        const randomValues = new Uint32Array(length);
+        window.crypto.getRandomValues(randomValues);
+        
+        for (let i = 0; i < length; i++) {
+            password += charset[randomValues[i] % charset.length];
+        }
+        return password;
+    }
+
+    lengthSlider.addEventListener('input', (e) => {
+        lengthVal.textContent = e.target.value;
+    });
+
+    generateBtn.addEventListener('click', () => {
+        const newPassword = generateSecurePassword(parseInt(lengthSlider.value, 10));
+        passwordInput.value = newPassword;
+        
+        passwordInput.setAttribute('type', 'text');
+        toggleBtn.textContent = 'Hide';
+
+        passwordInput.dispatchEvent(new Event('input'));
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        toggleBtn.textContent = type === 'password' ? 'Show' : 'Hide';
+    });
+
+    copyBtn.addEventListener('click', () => {
+        if (!passwordInput.value) return; 
+
+        navigator.clipboard.writeText(passwordInput.value).then(() => {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            copyBtn.style.color = 'var(--success-color)';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.color = ''; 
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy password: ', err);
+            alert("Failed to copy password to clipboard.");
+        });
+    });
+
+    passwordInput.addEventListener('input', () => {
+        const val = passwordInput.value;
+
+        if (!val) {
+            meterFill.className = 'strength-meter-fill';
+            statusText.textContent = 'Waiting for input...';
+            crackTime.style.display = 'none';
+            warningText.textContent = '';
+            suggestionsList.innerHTML = '';
+            return;
+        }
+
+        const result = zxcvbn(val);
+        let score = result.score;
+
+        if (val.length < 15) {
+            score = Math.min(score, 1);
+            if (!result.feedback.warning) {
+                result.feedback.warning = "Password should be at least 15 characters long.";
+            }
+        }
+
+        meterFill.className = `strength-meter-fill score-${score}`;
+        statusText.textContent = scoreLabels[score];
+
+        const timeToCrack = result.crack_times_display.offline_slow_hashing_1e4_per_second;
+        crackTime.textContent = `Crack time: ${timeToCrack}`;
+        crackTime.style.display = 'block';
+
+        warningText.textContent = result.feedback.warning || '';
+        
+        suggestionsList.innerHTML = '';
+        if (result.feedback.suggestions) {
+            result.feedback.suggestions.forEach(suggestion => {
+                const li = document.createElement('li');
+                li.textContent = suggestion;
+                suggestionsList.appendChild(li);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
